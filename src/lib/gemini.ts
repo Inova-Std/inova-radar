@@ -8,8 +8,8 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-// Atualizado para o modelo mais recente 2.0 Flash
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+// Atualizado para o modelo mais recente 2.5 Flash (Estável em 2026)
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 export interface GeminiInsight {
   pitch: string;
