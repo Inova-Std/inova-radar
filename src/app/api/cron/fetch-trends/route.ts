@@ -11,7 +11,7 @@ export async function GET() {
   try {
     console.log('Iniciando captação de tendências...');
 
-    let items = [];
+    let items: any[] = [];
     
     // Tenta captar do Google News primeiro
     try {
@@ -59,7 +59,7 @@ export async function GET() {
       const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
       const momentum = existingTrend && existingTrend.currentVolume > 0 
         ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
-        : (Math.random() * 40) - 10; // Simula variação se for novo
+        : (Math.random() * 40) - 10; 
 
       const trend = await prisma.trend.upsert({
         where: { keyword },
@@ -85,7 +85,6 @@ export async function GET() {
       });
     }
 
-    // Retorna JSON simples para evitar problemas de redirect em HTTP/HTTPS misto
     return NextResponse.json({ 
       success: true, 
       message: "Radar sincronizado com sucesso! Por favor, volte para a home e recarregue a página.",
