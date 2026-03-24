@@ -9,6 +9,7 @@ const parser = new Parser();
 
 export async function syncTrendsAction() {
   try {
+    console.log('Iniciando captação de tendências...');
     let items: any[] = [];
     
     // Foco em notícias de impacto/política/economia
@@ -41,49 +42,55 @@ export async function syncTrendsAction() {
       ];
     }
 
-    for (const item of items) {
+    // OTIMIZAÇÃO: Processar os top 5 em paralelo para ser instantâneo
+    const topItems = items.slice(0, 5);
+    const otherItems = items.slice(5);
+
+    console.log(`Gerando insights para ${topItems.length} tendências em paralelo...`);
+
+    const processedTrends = await Promise.all(topItems.map(async (item) => {
+      try {
+        const { keyword, traffic } = item;
+        const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
+        const momentum = existingTrend && existingTrend.currentVolume > 0 
+          ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
+          : (Math.random() * 20);
+        
+        const insight = await generateGeminiInsight(keyword);
+
+        const trend = await prisma.trend.upsert({
+          where: { keyword },
+          update: { currentVolume: traffic, momentum, category: insight.category, updatedAt: new Date() },
+          create: { keyword, currentVolume: traffic, peakVolume: traffic, momentum, category: insight.category, source: 'radar-ai' },
+        });
+
+        await prisma.autoIdea.create({
+          data: { trendId: trend.id, generatedPitch: insight.pitch, viabilityScore: insight.viability }
+        });
+
+        await prisma.dataPoint.create({
+          data: { trendId: trend.id, score: traffic },
+        });
+
+        return keyword;
+      } catch (err) {
+        console.error(`Erro ao processar ${item.keyword}:`, err);
+        return null;
+      }
+    }));
+
+    // Processar o resto sem IA (para ser rápido)
+    for (const item of otherItems) {
       const { keyword, traffic } = item;
-      const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
-      const momentum = existingTrend && existingTrend.currentVolume > 0 
-        ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
-        : (Math.random() * 20);
-      
-      // A MÁGICA: Gera o insight usando o Gemini
-      const insight = await generateGeminiInsight(keyword);
-
-      const trend = await prisma.trend.upsert({
+      await prisma.trend.upsert({
         where: { keyword },
-        update: { 
-          currentVolume: traffic, 
-          momentum, 
-          category: insight.category,
-          updatedAt: new Date() 
-        },
-        create: { 
-          keyword, 
-          currentVolume: traffic, 
-          peakVolume: traffic, 
-          momentum, 
-          category: insight.category,
-          source: 'radar-ai' 
-        },
-      });
-
-      // Salva a Ideia de App gerada pela IA
-      await prisma.autoIdea.create({
-        data: {
-          trendId: trend.id,
-          generatedPitch: insight.pitch,
-          viabilityScore: insight.viability
-        }
-      });
-
-      await prisma.dataPoint.create({
-        data: { trendId: trend.id, score: traffic },
+        update: { currentVolume: traffic, updatedAt: new Date() },
+        create: { keyword, currentVolume: traffic, peakVolume: traffic, source: 'radar-ai' },
       });
     }
 
     revalidatePath('/');
+    console.log('Sincronização concluída com sucesso.');
     return { success: true };
   } catch (error: any) {
     console.error('Sync error:', error);
