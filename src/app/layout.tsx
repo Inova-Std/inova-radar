@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Inova Radar | Tendências em Tempo Real",
@@ -23,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
-      <body className="antialiased bg-white selection:bg-indigo-100">
+    <html lang="pt-BR" className={inter.variable}>
+      <body className="antialiased bg-zinc-50 font-sans selection:bg-blue-100">
         {children}
       </body>
     </html>
