@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trend {
+  id            String      @id @default(cuid())
+  keyword       String      @unique
+  currentVolume Int         @default(0)
+  peakVolume    Int         @default(0)
+  momentum      Float       @default(0)
+  source        String      @default("google")
+  category      String?
+  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now())
+
+  dataPoints    DataPoint[]
+  ideas         AutoIdea[]
+
+  @@index([keyword])
+}
+
+model DataPoint {
+  id        String   @id @default(cuid())
+  trendId   String
+  timestamp DateTime @default(now())
+  score     Int
+
+  trend     Trend    @relation(fields: [trendId], references: [id], onDelete: Cascade)
+
+  @@index([trendId, timestamp])
+}
+
+model AutoIdea {
+  id             String   @id @default(cuid())
+  trendId        String
+  generatedPitch String   @db.Text
+  viabilityScore Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  trend          Trend    @relation(fields: [trendId], references: [id], onDelete: Cascade)
+
+  @@index([trendId])
+}

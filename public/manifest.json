@@ -1,0 +1,17 @@
+{
+  "name": "Inova Radar",
+  "short_name": "InovaRadar",
+  "description": "Radar de Tendências em Tempo Real",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
