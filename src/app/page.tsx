@@ -9,9 +9,9 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Radio } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SyncButton } from '@/components/sync-button';
+import { TrendingUp, TrendingDown, Minus, Radio } from "lucide-react";
 import { format } from 'date-fns';
 
 async function getTrends() {
@@ -42,12 +42,7 @@ export default async function RadarPage() {
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Radar em Busca de Sinais...</h1>
           <p className="text-zinc-500 max-w-md">O banco de dados ainda está vazio. Clique abaixo para iniciar a primeira varredura de tendências globais.</p>
         </div>
-        <form action="/api/cron/fetch-trends" method="GET">
-           <Button size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200">
-             <RefreshCw className="w-4 h-4 mr-2" />
-             Sincronizar Agora
-           </Button>
-        </form>
+        <SyncButton size="lg" className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200" label="Sincronizar Agora" />
       </div>
     );
   }
@@ -81,12 +76,7 @@ export default async function RadarPage() {
           <p className="text-zinc-500 text-lg">Radar de tendências em tempo real via Google & TikTok.</p>
         </div>
         
-        <form action="/api/cron/fetch-trends" method="GET">
-           <Button variant="outline" size="sm" className="text-zinc-500 hover:text-blue-600">
-             <RefreshCw className="w-3 h-3 mr-2" />
-             Atualizar Radar
-           </Button>
-        </form>
+        <SyncButton variant="outline" size="sm" className="text-zinc-500 hover:text-blue-600" label="Atualizar Radar" />
       </header>
 
       {/* Hero Graph Section */}
