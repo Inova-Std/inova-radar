@@ -3,12 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import Parser from 'rss-parser';
 import prisma from '@/lib/prisma';
-import { generateGeminiInsight } from '@/lib/gemini';
+import { generateBatchGeminiInsights } from '@/lib/gemini';
 
 const parser = new Parser();
-
-// Helper para dar uma pausa entre as chamadas da IA
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function syncTrendsAction() {
   try {
@@ -43,56 +40,53 @@ export async function syncTrendsAction() {
       ];
     }
 
-    // Processar apenas os Top 3 com IA para economizar cota (e em sequência com delay)
-    const topItems = items.slice(0, 3);
-    const otherItems = items.slice(3);
+    // OTIMIZAÇÃO: Pegamos os Top 5 e mandamos em UMA ÚNICA chamada para o Gemini
+    const topKeywords = items.slice(0, 5).map(i => i.keyword);
+    console.log(`Gerando insights para ${topKeywords.length} tendências em um único request...`);
+    
+    const insights = await generateBatchGeminiInsights(topKeywords);
 
-    console.log(`Gerando insights para ${topItems.length} tendências com cautela...`);
+    // Mapeamos os resultados da IA para salvar no banco
+    for (const item of items) {
+      const { keyword, traffic } = item;
+      const insight = insights.find(ins => ins.keyword === keyword);
+      
+      const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
+      const momentum = existingTrend && existingTrend.currentVolume > 0 
+        ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
+        : (Math.random() * 20);
 
-    for (const item of topItems) {
-      try {
-        const { keyword, traffic } = item;
-        const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
-        const momentum = existingTrend && existingTrend.currentVolume > 0 
-          ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
-          : (Math.random() * 20);
-        
-        // Chama o Gemini
-        const insight = await generateGeminiInsight(keyword);
+      const trend = await prisma.trend.upsert({
+        where: { keyword },
+        update: { 
+          currentVolume: traffic, 
+          momentum, 
+          category: insight?.category || 'Geral', 
+          updatedAt: new Date() 
+        },
+        create: { 
+          keyword, 
+          currentVolume: traffic, 
+          peakVolume: traffic, 
+          momentum, 
+          category: insight?.category || 'Geral', 
+          source: 'radar-ai' 
+        },
+      });
 
-        const trend = await prisma.trend.upsert({
-          where: { keyword },
-          update: { currentVolume: traffic, momentum, category: insight.category, updatedAt: new Date() },
-          create: { keyword, currentVolume: traffic, peakVolume: traffic, momentum, category: insight.category, source: 'radar-ai' },
-        });
-
+      if (insight) {
         await prisma.autoIdea.create({
           data: { trendId: trend.id, generatedPitch: insight.pitch, viabilityScore: insight.viability }
         });
-
-        await prisma.dataPoint.create({
-          data: { trendId: trend.id, score: traffic },
-        });
-
-        // Espera 1.5 segundos antes da próxima para não estourar o RPM do plano free
-        await delay(1500);
-
-      } catch (err) {
-        console.error(`Erro ao processar ${item.keyword}:`, err);
       }
-    }
 
-    // O resto atualiza na hora sem IA
-    for (const item of otherItems) {
-      const { keyword, traffic } = item;
-      await prisma.trend.upsert({
-        where: { keyword },
-        update: { currentVolume: traffic, updatedAt: new Date() },
-        create: { keyword, currentVolume: traffic, peakVolume: traffic, source: 'radar-ai' },
+      await prisma.dataPoint.create({
+        data: { trendId: trend.id, score: traffic },
       });
     }
 
     revalidatePath('/');
+    console.log('Sincronização em lote concluída.');
     return { success: true };
   } catch (error: any) {
     console.error('Sync error:', error);
