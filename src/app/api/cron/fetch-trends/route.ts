@@ -5,12 +5,21 @@ import prisma from '@/lib/prisma';
 const parser = new Parser({
   customFields: {
     item: [['ht:approx_traffic', 'approxTraffic']],
+  },
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
   }
 });
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
-    const feed = await parser.parseURL('https://trends.google.com.br/trends/trendingsearches/daily/rss?geo=BR');
+    // Usando a URL global que é mais estável
+    const FEED_URL = 'https://trends.google.com/trends/trendingsearches/daily/rss?geo=BR';
+    
+    console.log('Fetching trends from:', FEED_URL);
+    const feed = await parser.parseURL(FEED_URL);
     
     const results = [];
 
@@ -21,7 +30,7 @@ export async function GET() {
       const trafficStr = (item as any).approxTraffic || '0';
       const traffic = parseInt(trafficStr.replace(/[^0-9]/g, '')) || 0;
 
-      // Find existing trend to calculate momentum
+      // Find existing trend
       const existingTrend = await prisma.trend.findUnique({
         where: { keyword }
       });
@@ -59,17 +68,15 @@ export async function GET() {
       results.push({ keyword, traffic });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      count: results.length,
-      timestamp: new Date().toISOString() 
-    });
+    // Redireciona de volta para a home para o usuário ver o resultado na hora
+    return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
 
   } catch (error: any) {
     console.error('Error fetching trends:', error);
     return NextResponse.json({ 
       success: false, 
-      error: error.message 
+      error: error.message,
+      detail: "O Google Trends pode ter bloqueado a requisição ou a URL mudou."
     }, { status: 500 });
   }
 }
