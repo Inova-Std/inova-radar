@@ -1,7 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Validação básica da chave
+const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+if (!apiKey) {
+  console.warn("⚠️ ALERTA: GOOGLE_GENERATIVE_AI_API_KEY não encontrada nas variáveis de ambiente!");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey || "");
+
+// Atualizado para o modelo mais recente 2.0 Flash
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 export interface GeminiInsight {
   pitch: string;
@@ -31,19 +39,20 @@ export async function generateGeminiInsight(keyword: string): Promise<GeminiInsi
   `;
 
   try {
+    if (!apiKey) throw new Error("API Key ausente");
+
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    // Extrai o JSON da resposta (Gemini às vezes coloca blocos de código)
     const jsonMatch = text.match(/\{.*\}/s);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
     throw new Error("Falha ao parsear JSON do Gemini");
   } catch (error) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini Execution Error:", error);
     return {
-      pitch: `Monitor de dados sobre '${keyword}' com interface simplificada para transparência.`,
-      viability: 7.0,
+      pitch: `Monitor interativo sobre '${keyword}' focado em transparência de dados públicos.`,
+      viability: 7.5,
       category: "Utilidade"
     };
   }
