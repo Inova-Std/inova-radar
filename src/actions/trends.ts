@@ -7,12 +7,14 @@ import { generateGeminiInsight } from '@/lib/gemini';
 
 const parser = new Parser();
 
+// Helper para dar uma pausa entre as chamadas da IA
+const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 export async function syncTrendsAction() {
   try {
     console.log('Iniciando captação de tendências...');
     let items: any[] = [];
     
-    // Foco em notícias de impacto/política/economia
     const FEED_URL = 'https://news.google.com/rss/search?q=gastos+públicos+OR+transparência+OR+verba+OR+decisão+governo+when:48h&hl=pt-BR&gl=BR&ceid=BR:pt-419';
     
     try {
@@ -31,7 +33,6 @@ export async function syncTrendsAction() {
       }
     } catch (e) { console.error('Feed error:', e); }
 
-    // Fallback com temas de transparência
     if (!items || items.length === 0) {
       items = [
         { keyword: 'Gastos de Gabinete 2026', traffic: 45000 },
@@ -42,13 +43,13 @@ export async function syncTrendsAction() {
       ];
     }
 
-    // OTIMIZAÇÃO: Processar os top 5 em paralelo para ser instantâneo
-    const topItems = items.slice(0, 5);
-    const otherItems = items.slice(5);
+    // Processar apenas os Top 3 com IA para economizar cota (e em sequência com delay)
+    const topItems = items.slice(0, 3);
+    const otherItems = items.slice(3);
 
-    console.log(`Gerando insights para ${topItems.length} tendências em paralelo...`);
+    console.log(`Gerando insights para ${topItems.length} tendências com cautela...`);
 
-    const processedTrends = await Promise.all(topItems.map(async (item) => {
+    for (const item of topItems) {
       try {
         const { keyword, traffic } = item;
         const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
@@ -56,6 +57,7 @@ export async function syncTrendsAction() {
           ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
           : (Math.random() * 20);
         
+        // Chama o Gemini
         const insight = await generateGeminiInsight(keyword);
 
         const trend = await prisma.trend.upsert({
@@ -72,14 +74,15 @@ export async function syncTrendsAction() {
           data: { trendId: trend.id, score: traffic },
         });
 
-        return keyword;
+        // Espera 1.5 segundos antes da próxima para não estourar o RPM do plano free
+        await delay(1500);
+
       } catch (err) {
         console.error(`Erro ao processar ${item.keyword}:`, err);
-        return null;
       }
-    }));
+    }
 
-    // Processar o resto sem IA (para ser rápido)
+    // O resto atualiza na hora sem IA
     for (const item of otherItems) {
       const { keyword, traffic } = item;
       await prisma.trend.upsert({
@@ -90,7 +93,6 @@ export async function syncTrendsAction() {
     }
 
     revalidatePath('/');
-    console.log('Sincronização concluída com sucesso.');
     return { success: true };
   } catch (error: any) {
     console.error('Sync error:', error);
