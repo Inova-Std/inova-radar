@@ -3,44 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import Parser from 'rss-parser';
 import prisma from '@/lib/prisma';
+import { generateGeminiInsight } from '@/lib/gemini';
 
 const parser = new Parser();
-
-// Lógica para gerar o "Pitch Inova" baseado no tema
-function generateInovaPitch(keyword: string): { pitch: string, viability: number, category: string } {
-  const k = keyword.toLowerCase();
-  
-  if (k.includes('gasto') || k.includes('verba') || k.includes('viagem') || k.includes('cartão')) {
-    return {
-      pitch: `Crie um '${keyword.split(' ')[0]}ômetro'. Um dashboard que mapeia esses gastos em tempo real, comparando com o custo de cestas básicas ou salários mínimos para gerar indignação visual.`,
-      viability: 9.2,
-      category: 'Transparência'
-    };
-  }
-  
-  if (k.includes('documento') || k.includes('arquivo') || k.includes('vazamento') || k.includes('lista')) {
-    return {
-      pitch: `Interface 'Leaked Explorer'. Transforme esses arquivos brutos em uma experiência interativa (como um celular ou desktop fake) onde o usuário pode 'bisbilhotar' as conversas e documentos de forma intuitiva.`,
-      viability: 8.5,
-      category: 'Exploração'
-    };
-  }
-
-  if (k.includes('eleição') || k.includes('deputado') || k.includes('senador') || k.includes('política')) {
-    return {
-      pitch: `Ferramenta 'De Olho no Voto'. Um ranking de fidelidade ou de gastos de gabinete com uma UI extremamente simples (Mobile-first) para o eleitor consultar na rua antes de discutir.`,
-      viability: 8.8,
-      category: 'Políticometro'
-    };
-  }
-
-  // Pitch padrão para temas gerais (adaptado para utilidade)
-  return {
-    pitch: `Transforme os dados brutos de '${keyword}' em um placar de impacto social. Foque em 'Gamificar a Transparência' para que o usuário sinta que está fiscalizando algo importante.`,
-    viability: 7.5,
-    category: 'Utilidade'
-  };
-}
 
 export async function syncTrendsAction() {
   try {
@@ -63,9 +28,9 @@ export async function syncTrendsAction() {
           traffic: Math.floor(Math.random() * (100000 - 10000) + 10000)
         })).slice(0, 10);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('Feed error:', e); }
 
-    // Fallback com temas que VOCÊ gosta (Políticos e Transparência)
+    // Fallback com temas de transparência
     if (!items || items.length === 0) {
       items = [
         { keyword: 'Gastos de Gabinete 2026', traffic: 45000 },
@@ -79,9 +44,12 @@ export async function syncTrendsAction() {
     for (const item of items) {
       const { keyword, traffic } = item;
       const existingTrend = await prisma.trend.findUnique({ where: { keyword } });
-      const momentum = existingTrend ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 : (Math.random() * 20);
+      const momentum = existingTrend && existingTrend.currentVolume > 0 
+        ? ((traffic - existingTrend.currentVolume) / existingTrend.currentVolume) * 100 
+        : (Math.random() * 20);
       
-      const insight = generateInovaPitch(keyword);
+      // A MÁGICA: Gera o insight usando o Gemini
+      const insight = await generateGeminiInsight(keyword);
 
       const trend = await prisma.trend.upsert({
         where: { keyword },
@@ -101,7 +69,7 @@ export async function syncTrendsAction() {
         },
       });
 
-      // Salva a Ideia de App
+      // Salva a Ideia de App gerada pela IA
       await prisma.autoIdea.create({
         data: {
           trendId: trend.id,
@@ -118,6 +86,7 @@ export async function syncTrendsAction() {
     revalidatePath('/');
     return { success: true };
   } catch (error: any) {
+    console.error('Sync error:', error);
     return { success: false, error: error.message };
   }
 }
