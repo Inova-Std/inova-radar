@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SyncButton } from '@/components/sync-button';
-import { TrendingUp, TrendingDown, Minus, Radio } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Radio, Lightbulb } from "lucide-react";
 import { format } from 'date-fns';
 
 async function getTrends() {
@@ -22,6 +22,10 @@ async function getTrends() {
       dataPoints: {
         orderBy: { timestamp: 'asc' },
         take: 12,
+      },
+      ideas: {
+        orderBy: { createdAt: 'desc' },
+        take: 1
       }
     }
   });
@@ -69,11 +73,11 @@ export default async function RadarPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-blue-600 font-semibold text-sm uppercase tracking-wider">
-            <Radio className="w-4 h-4" />
+            <Radio className="w-4 h-4 animate-pulse" />
             Live Insights
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">Inova Radar 📡</h1>
-          <p className="text-zinc-500 text-lg">Radar de tendências em tempo real via Google & TikTok.</p>
+          <p className="text-zinc-500 text-lg">Mapeando polêmicas, gastos e transparência para o próximo Micro-SaaS.</p>
         </div>
         
         <SyncButton variant="outline" size="sm" className="text-zinc-500 hover:text-blue-600" label="Atualizar Radar" />
@@ -84,11 +88,41 @@ export default async function RadarPage() {
         <HeroGraph data={chartData} trends={trendKeywords} />
       </section>
 
-      {/* Opportunity Matrix Section */}
+      {/* Auto-Insights Section (NOW REAL) */}
       <section className="space-y-4">
+        <div className="flex items-center gap-2">
+           <Lightbulb className="w-6 h-6 text-yellow-500" />
+           <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">Micro-SaaS Blueprints</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {trends.filter(t => t.ideas.length > 0).slice(0, 6).map((trend, i) => (
+            <Card key={i} className="border-blue-100 bg-white hover:shadow-xl transition-all hover:-translate-y-1 cursor-default group border-l-4 border-l-blue-600">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start mb-2">
+                   <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none">{trend.category || 'Ideia'}</Badge>
+                   <span className="text-xs font-bold text-zinc-400">Score: {trend.ideas[0].viabilityScore.toFixed(1)}</span>
+                </div>
+                <CardTitle className="text-xl font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">Tema: {trend.keyword}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-zinc-600 leading-relaxed italic">
+                  "{trend.ideas[0].generatedPitch}"
+                </p>
+                <div className="mt-6 pt-4 border-t border-zinc-50 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-400 uppercase tracking-tighter">Oportunidade Detectada</span>
+                  <Badge variant="outline" className="text-blue-600 border-blue-100 bg-blue-50/30">Studio Build</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Opportunity Matrix Section */}
+      <section className="space-y-4 pt-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">Matriz de Oportunidades</h2>
-          <Badge variant="secondary" className="px-3 py-1 bg-zinc-100 text-zinc-600 border-none">Top 20 Trends</Badge>
+          <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">Matriz de Monitoramento</h2>
+          <Badge variant="secondary" className="px-3 py-1 bg-zinc-100 text-zinc-600 border-none">Radar Ativo</Badge>
         </div>
         <Card className="border-zinc-200 shadow-sm overflow-hidden">
           <CardContent className="p-0">
@@ -96,16 +130,20 @@ export default async function RadarPage() {
               <TableHeader className="bg-zinc-50/50">
                 <TableRow>
                   <TableHead className="font-bold text-zinc-900 py-4">Tópico</TableHead>
+                  <TableHead className="font-bold text-zinc-900">Categoria</TableHead>
+                  <TableHead className="font-bold text-zinc-900">Impacto</TableHead>
                   <TableHead className="font-bold text-zinc-900">Heat Score</TableHead>
-                  <TableHead className="font-bold text-zinc-900">Volume</TableHead>
-                  <TableHead className="font-bold text-zinc-900">Momento</TableHead>
-                  <TableHead className="font-bold text-zinc-900 text-right pr-6">Fonte</TableHead>
+                  <TableHead className="font-bold text-zinc-900 text-right pr-6">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {trends.map((trend) => (
                   <TableRow key={trend.id} className="hover:bg-zinc-50/50 transition-colors">
                     <TableCell className="font-semibold text-zinc-900 py-4">{trend.keyword}</TableCell>
+                    <TableCell>
+                       <span className="text-xs font-medium text-zinc-500 uppercase">{trend.category || 'Geral'}</span>
+                    </TableCell>
+                    <TableCell className="text-zinc-600 font-medium">{(trend.currentVolume/1000).toFixed(0)}k+</TableCell>
                     <TableCell>
                       <Badge 
                         variant={trend.momentum > 0 ? "success" : trend.momentum < 0 ? "destructive" : "secondary"}
@@ -114,25 +152,20 @@ export default async function RadarPage() {
                         {trend.momentum > 0 ? '+' : ''}{trend.momentum.toFixed(1)}%
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-zinc-600 font-medium">{(trend.currentVolume/1000).toFixed(0)}k+</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {trend.momentum > 0 ? (
-                          <TrendingUp className="w-4 h-4 text-green-600" />
-                        ) : trend.momentum < 0 ? (
-                          <TrendingDown className="w-4 h-4 text-red-600" />
-                        ) : (
-                          <Minus className="w-4 h-4 text-zinc-400" />
-                        )}
-                        <span className={`text-sm font-medium ${trend.momentum > 0 ? "text-green-700" : trend.momentum < 0 ? "text-red-700" : "text-zinc-500"}`}>
-                          {Math.abs(trend.momentum) > 50 ? 'Explosivo' : Math.abs(trend.momentum) > 10 ? 'Estável' : 'Neutro'}
-                        </span>
-                      </div>
-                    </TableCell>
                     <TableCell className="text-right pr-6">
-                      <Badge variant="outline" className="capitalize text-zinc-400 font-normal">
-                        {trend.source}
-                      </Badge>
+                      <div className="flex items-center justify-end gap-2">
+                        {trend.momentum > 15 ? (
+                          <div className="flex items-center gap-1 text-green-600 font-bold text-xs">
+                             <TrendingUp className="w-3 h-3" />
+                             EXPLOSIVO
+                          </div>
+                        ) : (
+                           <div className="flex items-center gap-1 text-zinc-400 font-medium text-xs">
+                             <Minus className="w-3 h-3" />
+                             ESTÁVEL
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -140,27 +173,6 @@ export default async function RadarPage() {
             </Table>
           </CardContent>
         </Card>
-      </section>
-
-      {/* Auto-Insights Placeholder Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {topTrends.slice(0, 3).map((trend, i) => (
-          <Card key={i} className="border-blue-100 bg-white hover:shadow-xl transition-all hover:-translate-y-1 cursor-default group">
-            <CardHeader className="pb-3">
-              <Badge variant="secondary" className="w-fit mb-2 bg-blue-50 text-blue-600 border-none group-hover:bg-blue-600 group-hover:text-white transition-colors">Auto-Insight #{i+1}</Badge>
-              <CardTitle className="text-xl font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">Micro-SaaS: {trend.keyword}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-zinc-500 leading-relaxed">
-                Este hype é ideal para um gerador de conteúdo ou ferramenta analítica customizada para <strong>{trend.keyword}</strong>.
-              </p>
-              <div className="mt-6 pt-4 border-t border-zinc-50 flex items-center justify-between">
-                <span className="text-sm font-bold text-blue-600">Viabilidade: 8.{5+i}/10</span>
-                <Badge variant="outline" className="text-zinc-400">Tech</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </section>
     </div>
   );
