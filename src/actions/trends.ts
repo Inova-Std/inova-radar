@@ -12,7 +12,8 @@ export async function syncTrendsAction() {
     console.log('Iniciando captação de tendências...');
     let items: any[] = [];
     
-    const FEED_URL = 'https://news.google.com/rss/search?q=gastos+públicos+OR+transparência+OR+verba+OR+decisão+governo+when:48h&hl=pt-BR&gl=BR&ceid=BR:pt-419';
+    // Busca as tendências com base nos 3 Pilares do DNA (Caos, Transparência, Vazamentos)
+    const FEED_URL = 'https://news.google.com/rss/search?q=greve+OR+apagão+OR+crise+OR+"gasto+público"+OR+imposto+OR+vazamento+OR+escândalo+when:48h&hl=pt-BR&gl=BR&ceid=BR:pt-419';
     
     try {
       const response = await fetch(FEED_URL, {

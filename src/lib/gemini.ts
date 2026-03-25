@@ -12,7 +12,11 @@ export interface GeminiInsight {
 }
 
 export async function generateBatchGeminiInsights(keywords: string[]): Promise<GeminiInsight[]> {
-  if (!apiKey || keywords.length === 0) return [];
+  if (!apiKey) {
+    console.warn("API Key do Gemini não configurada!");
+    return [];
+  }
+  if (keywords.length === 0) return [];
 
   const prompt = `
     Você é um Product Manager Sênior da 'Inova Studio'. Sua especialidade é transformar temas quentes (política, gastos públicos, polêmicas e dados vazados) em Micro-SaaS virais e visuais.
@@ -20,8 +24,13 @@ export async function generateBatchGeminiInsights(keywords: string[]): Promise<G
     LISTA DE TEMAS ATUAIS:
     ${keywords.map((k, i) => `${i + 1}. ${k}`).join('\n')}
     
-    Sua tarefa é criar um conceito de aplicação web (Micro-SaaS) leve para CADA um desses temas.
-    Siga o estilo da 'Inova Studio' (transparência, utilidade pública, interfaces imersivas).
+    Sua tarefa é criar um conceito de aplicação web (Micro-SaaS) altamente focado para CADA um desses temas.
+    
+    ESTILO DE PRODUTOS DA 'INOVA STUDIO' (SEU DNA):
+    - Pilar 1 (O Bote Salva-Vidas): Foco em caos e urgência. Ferramentas para sobreviver a greves, apagões e crises (ex: radares e alertas).
+    - Pilar 2 (A Lupa no Bolso): Foco em indignação e transparência. Ferramentas que expõem gastos do governo e impostos de forma chocante (ex: contadores reais).
+    - Pilar 3 (O Dossiê Interativo): Foco em curiosidade e voyeurismo. Interfaces para checar vazamentos ou escândalos (ex: dados densos virando experiência jogável).
+    - Design e Escopo: Micro-SaaS de página única, sem a fricção de criar conta inicial. Interface imersiva, sombria ou neon.
     
     REGRAS PARA CADA ITEM:
     1. O pitch deve ser curto (máximo 120 caracteres) e impactante.
@@ -40,6 +49,11 @@ export async function generateBatchGeminiInsights(keywords: string[]): Promise<G
     ]
   `;
 
+  // DEBUG MODE MANTIDO: Imprime o prompt no console
+  console.log("================ MODO DEBUG: REQUEST PARA O GEMINI ================");
+  console.log(prompt);
+  console.log("===================================================================");
+  
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
